@@ -1,0 +1,25 @@
+{
+  "name": "forge3d-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-Powered 3D Asset Production Studio — Blender MCP + Claude Code",
+  "author": "PNW Solutions / 1Commerce LLC",
+  "license": "MIT",
+  "workspaces": [
+    "src/server",
+    "client-portal"
+  ],
+  "scripts": {
+    "dev:server": "cd src/server && npm run dev",
+    "dev:portal": "cd client-portal && npm run dev",
+    "dev:mcp": "cd src/mcp && python forge3d_mcp_server.py",
+    "build": "npm run build:server && npm run build:portal",
+    "build:server": "cd src/server && npm run build",
+    "build:portal": "cd client-portal && npm run build",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
