@@ -1,0 +1,9 @@
+# ── API proxy ─────────────────────────────────────────────────────────────────
+# Replace the destination with your actual Railway (or other) backend URL.
+# This proxies all /api/* requests server-side, eliminating CORS issues.
+/api/*  https://YOUR-ACTUAL-API.up.railway.app/api/:splat  200
+
+# ── SPA catch-all ─────────────────────────────────────────────────────────────
+# Every other request is routed to index.html so React Router handles
+# navigation without a 404 on hard refresh or direct URL access.
+/*  /index.html  200
