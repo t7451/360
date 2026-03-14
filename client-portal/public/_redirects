@@ -1,0 +1,5 @@
+# API proxy to Railway backend
+/api/*  https://forge3d-api.up.railway.app/api/:splat  200
+
+# SPA catch-all — must be LAST
+/*  /index.html  200
