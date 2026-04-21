@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { api } from '../lib/api';
 import { Box, Zap, ArrowLeft } from 'lucide-react';
 
 const ASSET_TYPES = [
@@ -69,25 +70,19 @@ export function NewOrder() {
         };
       }
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/orders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
+      const data = await api.post<{
+        success: boolean;
+        data: { orderId: string; checkoutUrl: string; priceUsd: number };
+        error?: string;
+      }>('/api/orders', body, token);
 
       if (data.success && data.data.checkoutUrl) {
-        // Redirect to Stripe Checkout
         window.location.href = data.data.checkoutUrl;
       } else {
         alert(data.error || 'Failed to create order');
       }
     } catch (err) {
-      alert('Network error. Please try again.');
+      alert(err instanceof Error ? err.message : 'Network error. Please try again.');
     } finally {
       setLoading(false);
     }

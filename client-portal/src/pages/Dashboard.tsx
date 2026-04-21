@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { api, ApiError } from '../lib/api';
 import { Plus, Download, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 interface Order {
@@ -33,13 +34,12 @@ export function Dashboard() {
 
   async function fetchOrders() {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/orders`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await api.get<{ success: boolean; data: Order[] }>('/api/orders', token);
       if (data.success) setOrders(data.data);
     } catch (err) {
-      console.error('Failed to fetch orders:', err);
+      if (!(err instanceof ApiError && err.status === 401)) {
+        console.error('Failed to fetch orders:', err);
+      }
     } finally {
       setLoading(false);
     }

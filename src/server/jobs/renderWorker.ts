@@ -120,7 +120,7 @@ async function executeBlenderScript(
     throw new Error(`Blender MCP execution failed (${response.status}): ${errBody}`);
   }
 
-  return response.json();
+  return response.json() as Promise<{ sceneId: string; stdout: string }>;
 }
 
 /**
@@ -151,7 +151,7 @@ async function renderOutputFormats(
       continue;
     }
 
-    const result = await response.json();
+    const result = await response.json() as { filePath: string };
     outputs.push({ format, localPath: result.filePath });
   }
 

@@ -1,31 +1,52 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowLeft, Download, CheckCircle, Loader2 } from 'lucide-react';
+import { api } from '../lib/api';
+import { ArrowLeft, Download, CheckCircle, Loader2, XCircle } from 'lucide-react';
+
+interface Order {
+  id: string;
+  assetType: string;
+  description: string;
+  status: string;
+  priceUsd: number;
+  priority: string;
+  outputFormats: string[];
+  assets: Array<{ id: string; filename: string; format: string; downloadUrl: string }>;
+  revisions: Array<{ id: string; description: string; status: string }>;
+  createdAt: string;
+}
 
 export function OrderDetail() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const stripeStatus = searchParams.get('status'); // 'success' | 'cancelled' | null
   const { token } = useAuth();
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     fetchOrder();
-    // Poll for status updates every 10s if order is in progress
-    const interval = setInterval(() => {
-      if (order && !['completed', 'failed'].includes(order.status)) {
-        fetchOrder();
-      }
-    }, 10000);
-    return () => clearInterval(interval);
+
+    // Poll every 8s when order is in progress
+    intervalRef.current = setInterval(() => {
+      setOrder(prev => {
+        if (prev && !['completed', 'failed', 'pending_payment'].includes(prev.status)) {
+          fetchOrder();
+        }
+        return prev;
+      });
+    }, 8000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [id]);
 
   async function fetchOrder() {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await api.get<{ success: boolean; data: Order }>(`/api/orders/${id}`, token);
       if (data.success) setOrder(data.data);
     } catch (err) {
       console.error(err);
@@ -51,6 +72,7 @@ export function OrderDetail() {
   }
 
   const isProcessing = ['queued', 'processing', 'rendering'].includes(order.status);
+  const progressPct = order.status === 'queued' ? 15 : order.status === 'processing' ? 50 : 80;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
@@ -59,16 +81,52 @@ export function OrderDetail() {
           <ArrowLeft size={16} /> Back to Dashboard
         </Link>
 
+        {/* Stripe return banners */}
+        {stripeStatus === 'success' && order.status !== 'pending_payment' && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-400">
+            <CheckCircle size={18} className="shrink-0" />
+            Payment confirmed! Your asset is now in the queue.
+          </div>
+        )}
+        {stripeStatus === 'cancelled' && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-900 p-4 text-sm text-zinc-400">
+            <XCircle size={18} className="shrink-0 text-zinc-500" />
+            Payment cancelled. You can retry below.
+          </div>
+        )}
+        {stripeStatus === 'success' && order.status === 'pending_payment' && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-400">
+            <Loader2 size={18} className="animate-spin shrink-0" />
+            Payment received — confirming with Stripe. Refreshing shortly...
+          </div>
+        )}
+
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold">{order.assetType.replace(/_/g, ' ')}</h1>
-          <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+          <span className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${
             order.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
             order.status === 'failed' ? 'bg-red-500/10 text-red-400' :
+            order.status === 'pending_payment' ? 'bg-yellow-500/10 text-yellow-400' :
             'bg-blue-500/10 text-blue-400'
           }`}>
             {order.status.replace(/_/g, ' ')}
           </span>
         </div>
+
+        {/* Re-pay button if still awaiting payment */}
+        {order.status === 'pending_payment' && stripeStatus !== 'success' && (
+          <div className="mb-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-5">
+            <p className="mb-3 text-sm text-zinc-400">
+              This order is awaiting payment. Complete checkout to start processing.
+            </p>
+            <a
+              href={`/api/orders/${order.id}/checkout`}
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium hover:bg-emerald-500 transition"
+            >
+              Complete Payment →
+            </a>
+          </div>
+        )}
 
         {/* Progress bar for active orders */}
         {isProcessing && (
@@ -80,7 +138,7 @@ export function OrderDetail() {
             <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
               <div
                 className="h-full rounded-full bg-emerald-500 transition-all duration-1000"
-                style={{ width: order.status === 'queued' ? '15%' : order.status === 'processing' ? '50%' : '80%' }}
+                style={{ width: `${progressPct}%` }}
               />
             </div>
           </div>
@@ -119,7 +177,7 @@ export function OrderDetail() {
               <CheckCircle size={18} className="text-emerald-400" /> Delivered Assets
             </h2>
             <div className="space-y-2">
-              {order.assets.map((asset: any) => (
+              {order.assets.map((asset) => (
                 <div
                   key={asset.id}
                   className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900 p-4"
@@ -143,3 +201,4 @@ export function OrderDetail() {
     </div>
   );
 }
+

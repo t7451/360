@@ -4,7 +4,7 @@ import { addRenderJob } from '../jobs/queue';
 import { orders } from './orders';
 
 const router = Router();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-12-18.acacia' });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' });
 
 router.post('/stripe', async (req: Request, res: Response) => {
   const sig = req.headers['stripe-signature'] as string;
@@ -55,6 +55,22 @@ router.post('/stripe', async (req: Request, res: Response) => {
     order.status = 'processing';
 
     console.log(`[Webhook] Order ${orderId} paid — queued as job ${jobId}`);
+  }
+
+  if (event.type === 'checkout.session.expired' || event.type === 'payment_intent.payment_failed') {
+    const obj = event.data.object as Stripe.Checkout.Session | Stripe.PaymentIntent;
+    const orderId = (obj as Stripe.Checkout.Session).metadata?.orderId
+      ?? (obj as Stripe.PaymentIntent).metadata?.orderId;
+
+    if (orderId) {
+      const order = orders.get(orderId);
+      if (order && order.status === 'queued') {
+        // Only reset if not yet processing (idempotent guard)
+        order.status = 'pending_payment';
+        order.updatedAt = new Date().toISOString();
+        console.log(`[Webhook] Order ${orderId} payment failed — reset to pending_payment`);
+      }
+    }
   }
 
   res.json({ received: true });

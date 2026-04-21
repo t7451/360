@@ -5,7 +5,7 @@ import { addRenderJob } from '../jobs/queue';
 import { ApiResponse, Order, OrderRequest, PRICING } from '../types';
 
 const router = Router();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-12-18.acacia' });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' });
 
 // In-memory store — swap for Firestore/Postgres in production
 const orders = new Map<string, Order>();
@@ -92,7 +92,7 @@ router.post('/', async (req: Request, res: Response) => {
 
 // GET /api/orders/:id — Order status
 router.get('/:id', (req: Request, res: Response) => {
-  const order = orders.get(req.params.id);
+  const order = orders.get(req.params.id as string);
   const user = (req as any).user;
 
   if (!order) {
@@ -117,9 +117,60 @@ router.get('/', (req: Request, res: Response) => {
   res.json({ success: true, data: userOrders } satisfies ApiResponse<Order[]>);
 });
 
+// GET /api/orders/:id/checkout — Re-generate Stripe Checkout for unpaid orders
+router.get('/:id/checkout', async (req: Request, res: Response) => {
+  const order = orders.get(req.params.id as string);
+  const user = (req as any).user;
+
+  if (!order) {
+    res.status(404).json({ success: false, error: 'Order not found' });
+    return;
+  }
+  if (order.userId !== user.uid) {
+    res.status(403).json({ success: false, error: 'Unauthorized' });
+    return;
+  }
+  if (order.status !== 'pending_payment') {
+    res.status(400).json({ success: false, error: 'Order is not awaiting payment' });
+    return;
+  }
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      client_reference_id: order.id,
+      customer_email: user.email,
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `FORGE3D: ${order.assetType.replace(/_/g, ' ')}`,
+            description: order.description.slice(0, 200),
+          },
+          unit_amount: order.priceUsd * 100,
+        },
+        quantity: 1,
+      }],
+      success_url: `${process.env.CLIENT_URL}/orders/${order.id}?status=success`,
+      cancel_url: `${process.env.CLIENT_URL}/orders/${order.id}?status=cancelled`,
+      metadata: { orderId: order.id },
+    });
+
+    order.stripePaymentId = session.id;
+    order.updatedAt = new Date().toISOString();
+
+    // Redirect browser directly to Stripe Checkout
+    res.redirect(303, session.url!);
+  } catch (err: any) {
+    console.error('[Orders] Checkout regeneration error:', err);
+    res.status(500).json({ success: false, error: 'Failed to create checkout session' });
+  }
+});
+
 // POST /api/orders/:id/revisions — Request revision
 router.post('/:id/revisions', async (req: Request, res: Response) => {
-  const order = orders.get(req.params.id);
+  const order = orders.get(req.params.id as string);
   const user = (req as any).user;
 
   if (!order) {

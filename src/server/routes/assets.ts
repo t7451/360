@@ -7,7 +7,7 @@ const router = Router();
 router.get('/:orderId/:assetId/download', (req: Request, res: Response) => {
   const { orderId, assetId } = req.params;
   const user = (req as any).user;
-  const order = orders.get(orderId);
+  const order = orders.get(String(orderId));
 
   if (!order) {
     res.status(404).json({ success: false, error: 'Order not found' });
