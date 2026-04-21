@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowLeft, Download, Clock, CheckCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, CheckCircle, Loader2 } from 'lucide-react';
 
 export function OrderDetail() {
   const { id } = useParams<{ id: string }>();

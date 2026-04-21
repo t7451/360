@@ -15,8 +15,11 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const isMisconfigured = !firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId;
+
+// Guard against missing env vars — prevents module-level crash → black screen
+const app = isMisconfigured ? null : initializeApp(firebaseConfig);
+const auth = app ? getAuth(app) : null;
 
 interface AuthContextType {
   user: User | null;
@@ -42,6 +45,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!auth) {
+      // Firebase not configured — resolve loading so the app renders
+      console.warn('[Auth] Firebase env vars missing. Set VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID.');
+      setLoading(false);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
@@ -56,14 +65,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
+    if (!auth) throw new Error('Firebase is not configured.');
     await signInWithEmailAndPassword(auth, email, password);
   };
 
   const signup = async (email: string, password: string) => {
+    if (!auth) throw new Error('Firebase is not configured.');
     await createUserWithEmailAndPassword(auth, email, password);
   };
 
   const logout = async () => {
+    if (!auth) return;
     await signOut(auth);
   };
 

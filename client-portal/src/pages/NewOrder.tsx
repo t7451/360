@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Box, Upload, Zap, ArrowLeft } from 'lucide-react';
+import { Box, Zap, ArrowLeft } from 'lucide-react';
 
 const ASSET_TYPES = [
   { value: 'product_render', label: 'Product Render', desc: 'Photorealistic 3D product mockup', price: '$100', icon: '📸' },
