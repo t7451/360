@@ -3,16 +3,22 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import fs from 'fs';
+import pinoHttp from 'pino-http';
 import { orderRoutes } from './routes/orders';
 import { webhookRoutes } from './routes/webhooks';
 import { assetRoutes } from './routes/assets';
 import { healthRoutes } from './routes/health';
+import { inkVaultRoutes } from './routes/inkvault';
 import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
 import { initializeQueue } from './jobs/queue';
+import { logger } from './lib/logger';
+import { requestIdMiddleware } from './middleware/requestId';
 import dotenv from 'dotenv';
+import { validateEnv } from './lib/validateEnv.js';
 
 dotenv.config();
+validateEnv(); // exits with clear error if required vars missing
 
 // Bootstrap Firebase service account from env var (Railway/production)
 // Set GOOGLE_APPLICATION_CREDENTIALS_JSON to the full service account JSON string
@@ -21,14 +27,27 @@ if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && !process.env.GOOGLE_APPLI
   try {
     fs.writeFileSync(tmpPath, process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON, { mode: 0o600 });
     process.env.GOOGLE_APPLICATION_CREDENTIALS = tmpPath;
-    console.log('[FORGE3D] Firebase service account loaded from env');
+    logger.info('Firebase service account loaded from env');
   } catch (err) {
-    console.error('[FORGE3D] Failed to write Firebase service account:', err);
+    logger.error({ error: err }, 'Failed to write Firebase service account');
   }
 }
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// --- Request ID & HTTP logging ---
+app.use(requestIdMiddleware);
+app.use(pinoHttp({
+  logger,
+  customSuccessMessage: (req, res) => `${req.method} ${req.url} ${res.statusCode}`,
+  customErrorMessage: (req, res, err) => `${req.method} ${req.url} ${res.statusCode} - ${err.message}`,
+  customAttributeKeys: { reqId: 'requestId' },
+  serializers: {
+    req: (req) => ({ method: req.method, url: req.url, id: req.id }),
+    res: (res) => ({ statusCode: res.statusCode }),
+  },
+}));
 
 // --- Security ---
 app.use(helmet());
@@ -57,6 +76,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use('/api/health', healthRoutes);
 app.use('/api/orders', authMiddleware, orderRoutes);
 app.use('/api/assets', authMiddleware, assetRoutes);
+app.use('/api/inkvault', inkVaultRoutes);
 
 // --- Error handling ---
 app.use(errorHandler);
@@ -66,11 +86,10 @@ async function start() {
   try {
     await initializeQueue();
     app.listen(PORT, () => {
-      console.log(`[FORGE3D] API server running on port ${PORT}`);
-      console.log(`[FORGE3D] Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info({ port: PORT, env: process.env.NODE_ENV }, 'FORGE3D API server started');
     });
   } catch (err) {
-    console.error('[FORGE3D] Failed to start server:', err);
+    logger.error({ error: err }, 'Failed to start server');
     process.exit(1);
   }
 }
