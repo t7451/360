@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import Stripe from 'stripe';
 import { addRenderJob } from '../jobs/queue';
-import { orders } from './orders';
+import { getOrder, updateOrderStatus } from '../lib/ordersStore';
 
 const router = Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' });
@@ -28,16 +28,12 @@ router.post('/stripe', async (req: Request, res: Response) => {
       return;
     }
 
-    const order = orders.get(orderId);
+    const order = await getOrder(orderId);
     if (!order) {
       console.error(`[Webhook] Order ${orderId} not found`);
       res.status(404).json({ error: 'Order not found' });
       return;
     }
-
-    // Mark paid and queue for processing
-    order.status = 'queued';
-    order.updatedAt = new Date().toISOString();
 
     const jobId = await addRenderJob({
       orderId: order.id,
@@ -51,8 +47,7 @@ router.post('/stripe', async (req: Request, res: Response) => {
       attempt: 0,
     });
 
-    order.jobId = jobId;
-    order.status = 'processing';
+    await updateOrderStatus(orderId, 'processing', { jobId });
 
     console.log(`[Webhook] Order ${orderId} paid — queued as job ${jobId}`);
   }
@@ -63,11 +58,10 @@ router.post('/stripe', async (req: Request, res: Response) => {
       ?? (obj as Stripe.PaymentIntent).metadata?.orderId;
 
     if (orderId) {
-      const order = orders.get(orderId);
+      const order = await getOrder(orderId);
       if (order && order.status === 'queued') {
         // Only reset if not yet processing (idempotent guard)
-        order.status = 'pending_payment';
-        order.updatedAt = new Date().toISOString();
+        await updateOrderStatus(orderId, 'pending_payment');
         console.log(`[Webhook] Order ${orderId} payment failed — reset to pending_payment`);
       }
     }

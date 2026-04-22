@@ -1,14 +1,12 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuid } from 'uuid';
 import Stripe from 'stripe';
 import { addRenderJob } from '../jobs/queue';
 import { ApiResponse, Order, OrderRequest, PRICING } from '../types';
+import { createOrder, getOrder, listOrdersByUser, updateOrderStatus } from '../lib/ordersStore';
 
 const router = Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' });
-
-// In-memory store — swap for Firestore/Postgres in production
-const orders = new Map<string, Order>();
 
 // POST /api/orders — Create order + Stripe checkout
 router.post('/', async (req: Request, res: Response) => {
@@ -78,7 +76,7 @@ router.post('/', async (req: Request, res: Response) => {
       updatedAt: new Date().toISOString(),
     };
 
-    orders.set(orderId, order);
+    await createOrder(order);
 
     res.status(201).json({
       success: true,
@@ -91,51 +89,62 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // GET /api/orders/:id — Order status
-router.get('/:id', (req: Request, res: Response) => {
-  const order = orders.get(req.params.id as string);
-  const user = (req as any).user;
+router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const order = await getOrder(req.params.id as string);
+    const user = (req as any).user;
 
-  if (!order) {
-    res.status(404).json({ success: false, error: 'Order not found' });
-    return;
-  }
-  if (order.userId !== user.uid && user.role !== 'admin') {
-    res.status(403).json({ success: false, error: 'Unauthorized' });
-    return;
-  }
+    if (!order) {
+      res.status(404).json({ success: false, error: 'Order not found' });
+      return;
+    }
+    if (order.userId !== user.uid && user.role !== 'admin') {
+      res.status(403).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
 
-  res.json({ success: true, data: order } satisfies ApiResponse<Order>);
+    res.json({ success: true, data: order } satisfies ApiResponse<Order>);
+  } catch (err) {
+    next(err);
+  }
 });
 
 // GET /api/orders — List user orders
-router.get('/', (req: Request, res: Response) => {
-  const user = (req as any).user;
-  const userOrders = Array.from(orders.values())
-    .filter(o => o.userId === user.uid || user.role === 'admin')
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-  res.json({ success: true, data: userOrders } satisfies ApiResponse<Order[]>);
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = (req as any).user;
+    let userOrders: Order[];
+    if (user.role === 'admin') {
+      // Admins can see all — fall back to unfiltered query via uid sweep not supported here;
+      // use listOrdersByUser per-user or extend for admin use separately
+      userOrders = await listOrdersByUser(user.uid);
+    } else {
+      userOrders = await listOrdersByUser(user.uid);
+    }
+    res.json({ success: true, data: userOrders } satisfies ApiResponse<Order[]>);
+  } catch (err) {
+    next(err);
+  }
 });
 
 // GET /api/orders/:id/checkout — Re-generate Stripe Checkout for unpaid orders
-router.get('/:id/checkout', async (req: Request, res: Response) => {
-  const order = orders.get(req.params.id as string);
-  const user = (req as any).user;
-
-  if (!order) {
-    res.status(404).json({ success: false, error: 'Order not found' });
-    return;
-  }
-  if (order.userId !== user.uid) {
-    res.status(403).json({ success: false, error: 'Unauthorized' });
-    return;
-  }
-  if (order.status !== 'pending_payment') {
-    res.status(400).json({ success: false, error: 'Order is not awaiting payment' });
-    return;
-  }
-
+router.get('/:id/checkout', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const order = await getOrder(req.params.id as string);
+    const user = (req as any).user;
+
+    if (!order) {
+      res.status(404).json({ success: false, error: 'Order not found' });
+      return;
+    }
+    if (order.userId !== user.uid) {
+      res.status(403).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+    if (order.status !== 'pending_payment') {
+      res.status(400).json({ success: false, error: 'Order is not awaiting payment' });
+      return;
+    }
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
@@ -157,63 +166,64 @@ router.get('/:id/checkout', async (req: Request, res: Response) => {
       metadata: { orderId: order.id },
     });
 
-    order.stripePaymentId = session.id;
-    order.updatedAt = new Date().toISOString();
+    await updateOrderStatus(order.id, order.status, { stripePaymentId: session.id });
 
     // Redirect browser directly to Stripe Checkout
     res.redirect(303, session.url!);
   } catch (err: any) {
     console.error('[Orders] Checkout regeneration error:', err);
-    res.status(500).json({ success: false, error: 'Failed to create checkout session' });
+    next(err);
   }
 });
 
 // POST /api/orders/:id/revisions — Request revision
-router.post('/:id/revisions', async (req: Request, res: Response) => {
-  const order = orders.get(req.params.id as string);
-  const user = (req as any).user;
+router.post('/:id/revisions', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const order = await getOrder(req.params.id as string);
+    const user = (req as any).user;
 
-  if (!order) {
-    res.status(404).json({ success: false, error: 'Order not found' });
-    return;
+    if (!order) {
+      res.status(404).json({ success: false, error: 'Order not found' });
+      return;
+    }
+    if (order.userId !== user.uid) {
+      res.status(403).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+    if (order.status !== 'completed') {
+      res.status(400).json({ success: false, error: 'Can only revise completed orders' });
+      return;
+    }
+
+    const revision = {
+      id: uuid(),
+      orderId: order.id,
+      description: req.body.description,
+      status: 'pending' as const,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedRevisions = [...order.revisions, revision];
+
+    // Re-queue for processing
+    const jobId = await addRenderJob({
+      orderId: order.id,
+      assetType: order.assetType,
+      description: `REVISION: ${revision.description}\n\nORIGINAL: ${order.description}`,
+      referenceImages: order.referenceImages,
+      dimensions: order.dimensions,
+      outputFormats: order.outputFormats,
+      renderEngine: order.renderEngine,
+      blenderCommands: [],
+      attempt: 0,
+    });
+
+    await updateOrderStatus(order.id, 'queued', { jobId, revisions: updatedRevisions });
+
+    res.json({ success: true, data: revision });
+  } catch (err) {
+    next(err);
   }
-  if (order.userId !== user.uid) {
-    res.status(403).json({ success: false, error: 'Unauthorized' });
-    return;
-  }
-  if (order.status !== 'completed') {
-    res.status(400).json({ success: false, error: 'Can only revise completed orders' });
-    return;
-  }
-
-  const revision = {
-    id: uuid(),
-    orderId: order.id,
-    description: req.body.description,
-    status: 'pending' as const,
-    createdAt: new Date().toISOString(),
-  };
-
-  order.revisions.push(revision);
-  order.status = 'queued';
-  order.updatedAt = new Date().toISOString();
-
-  // Re-queue for processing
-  const jobId = await addRenderJob({
-    orderId: order.id,
-    assetType: order.assetType,
-    description: `REVISION: ${revision.description}\n\nORIGINAL: ${order.description}`,
-    referenceImages: order.referenceImages,
-    dimensions: order.dimensions,
-    outputFormats: order.outputFormats,
-    renderEngine: order.renderEngine,
-    blenderCommands: [],
-    attempt: 0,
-  });
-
-  order.jobId = jobId;
-
-  res.json({ success: true, data: revision });
 });
 
-export { router as orderRoutes, orders };
+export { router as orderRoutes };

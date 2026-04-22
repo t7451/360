@@ -1,8 +1,9 @@
 import { Job } from 'bullmq';
 import { RenderJob, DeliveredAsset, OutputFormat } from '../types';
-import { orders } from '../routes/orders';
+import { getOrder, updateOrderStatus } from '../lib/ordersStore';
 import { v4 as uuid } from 'uuid';
 import Anthropic from '@anthropic-ai/sdk';
+import { logger } from '../lib/logger';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -16,7 +17,7 @@ const MCP_SERVER_URL = process.env.MCP_SERVER_URL || 'http://localhost:8765';
  */
 export async function processRenderJob(job: Job<RenderJob>): Promise<void> {
   const data = job.data;
-  const order = orders.get(data.orderId);
+  const order = await getOrder(data.orderId);
 
   if (!order) {
     throw new Error(`Order ${data.orderId} not found`);
@@ -25,13 +26,13 @@ export async function processRenderJob(job: Job<RenderJob>): Promise<void> {
   try {
     // Phase 1: Generate Blender commands from description via Claude
     await job.updateProgress(10);
-    order.status = 'processing';
+    await updateOrderStatus(data.orderId, 'processing');
 
     const blenderScript = await generateBlenderScript(data);
 
     // Phase 2: Execute via Blender MCP bridge
     await job.updateProgress(30);
-    order.status = 'rendering';
+    await updateOrderStatus(data.orderId, 'rendering');
 
     const result = await executeBlenderScript(blenderScript, data);
 
@@ -46,16 +47,13 @@ export async function processRenderJob(job: Job<RenderJob>): Promise<void> {
     const assets = await uploadAssets(data.orderId, renderOutputs);
 
     // Phase 5: Update order with delivered assets
-    order.assets = assets;
-    order.status = 'completed';
-    order.updatedAt = new Date().toISOString();
+    await updateOrderStatus(data.orderId, 'completed', { assets });
 
     await job.updateProgress(100);
 
     console.log(`[RenderWorker] Order ${data.orderId} completed with ${assets.length} assets`);
   } catch (err: any) {
-    order.status = 'failed';
-    order.updatedAt = new Date().toISOString();
+    await updateOrderStatus(data.orderId, 'failed');
     throw err; // Re-throw for BullMQ retry logic
   }
 }
@@ -147,7 +145,7 @@ async function renderOutputFormats(
     });
 
     if (!response.ok) {
-      console.error(`[RenderWorker] Export failed for format ${format}`);
+      logger.error({ orderId: data.orderId, format }, 'Export failed for format');
       continue;
     }
 
