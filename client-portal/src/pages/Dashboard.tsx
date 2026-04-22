@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api, ApiError } from '../lib/api';
-import { Plus, Download, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, Download, Clock, CheckCircle, AlertCircle, Loader2, Sparkles } from 'lucide-react';
+
+const INKVAULT_URL = import.meta.env.VITE_INKVAULT_URL || 'https://inkvault.netlify.app';
 
 interface Order {
   id: string;
@@ -61,6 +63,23 @@ export function Dashboard() {
       </nav>
 
       <div className="mx-auto max-w-5xl px-6 py-10">
+        {/* InkVault Banner */}
+        <a
+          href={INKVAULT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mb-8 flex items-center gap-4 rounded-xl border border-purple-800/50 bg-purple-950/30 px-5 py-4 transition hover:border-purple-700 hover:bg-purple-950/50"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-900/60">
+            <Sparkles size={20} className="text-purple-300" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-purple-200">Explore InkVault — AI Tattoo Design Studio</p>
+            <p className="text-sm text-purple-400/80">Browse 133+ curated flash designs, stencil tools, placement guides & artist directory</p>
+          </div>
+          <span className="shrink-0 text-xs text-purple-400">Visit →</span>
+        </a>
+
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>

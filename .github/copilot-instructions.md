@@ -2,15 +2,16 @@
 
 ## Architecture Overview
 
-Monorepo with three services that must all run together:
+Monorepo with four workspaces — two client-facing products, one API, one MCP bridge:
 
 ```
-Client Portal (React/Vite)  →  API Server (Express/TS)  →  Blender MCP Bridge (FastAPI/Python)
-        ↓                              ↓                              ↓
-  Firebase Auth              BullMQ/Redis job queue           Headless Blender 4.x
-  Stripe Checkout            GCS asset storage                Cycles/EEVEE renderer
+InkVault (React/Vite)       Client Portal (React/Vite)  →  API Server (Express/TS)  →  Blender MCP Bridge (FastAPI/Python)
+  Tattoo Flash Library              ↓                              ↓                              ↓
+  Standalone Netlify site     Firebase Auth              BullMQ/Redis job queue           Headless Blender 4.x
+  No backend required         Stripe Checkout            GCS asset storage                Cycles/EEVEE renderer
 ```
 
+- **`inkvault/`** — React 19 + Vite + Tailwind + shadcn/ui. Standalone AI tattoo flash library and design studio. Features: flash gallery (133 curated designs), Design Studio modal (preview/stencil/customize/measure tabs), placement guide, artist directory, favorites vault. Deployed as a **separate Netlify site** — no Firebase or API dependency. Build: `vite build` only (no `tsc -b`; React 18/19 workspace type conflict bypass).
 - **`client-portal/`** — React 18 + Vite + Tailwind. Firebase client-side auth. Routes: `/`, `/login`, `/dashboard`, `/orders/new`, `/orders/:id`. All protected routes require Firebase JWT.
 - **`src/server/`** — Express.js TypeScript API. Listens on port 3001. `/api/orders` and `/api/assets` are auth-protected; `/api/health` and `/api/webhooks` are public.
 - **`src/mcp/`** — FastAPI Python bridge. Receives Blender Python scripts, executes them in headless Blender, saves `.blend` scenes. Two-step flow: `POST /execute` → `scene_id` → `POST /export`.
@@ -42,12 +43,21 @@ pip install -r requirements.txt
 python forge3d_mcp_server.py   # runs on port 8765
 ```
 
+### InkVault (`inkvault/`)
+```bash
+cd inkvault
+npm run dev          # Vite dev server (port 5174)
+npm run build        # production build → dist/ (vite only, no tsc)
+npm run type-check   # tsc -b (separate from build)
+```
+
 ### Root workspace
 ```bash
-npm run dev:server   # alias for src/server dev
-npm run dev:portal   # alias for client-portal dev
-npm run dev:mcp      # alias for mcp server
-npm run build        # builds server + portal
+npm run dev:server    # alias for src/server dev
+npm run dev:portal    # alias for client-portal dev
+npm run dev:inkvault  # alias for inkvault dev
+npm run dev:mcp       # alias for mcp server
+npm run build         # builds server + portal
 npm run lint         # lints all workspaces
 npm test             # tests all workspaces
 ```
@@ -112,6 +122,7 @@ Orders currently use an in-memory `Map` in `src/server/routes/orders.ts`. This i
 ## Deployment
 - **API**: Railway — auto-deploys `main`. Entry: `node dist/index.js`.
 - **Portal**: Netlify — base dir `client-portal`, build `npm run build`, publish `dist`. The Netlify MCP deploy via Claude sandbox fails due to multipart upload restrictions; use `netlify deploy --prod --dir=dist` or manual drag-and-drop.
+- **InkVault**: Separate Netlify site — base dir `inkvault`, build command `npm run build`, publish dir `dist`. No environment variables needed. SPA redirect and image caching headers defined in `inkvault/netlify.toml`.
 - **Blender Worker**: Contabo VPS or GCE GPU instance running the MCP bridge.
 
 ## Protected Files
