@@ -430,6 +430,7 @@ export default function InkVaultApp() {
       </header>
 
       <main className="main">
+        <div key={activeTab} className="tab-content">
         {activeTab === 'flash' && (
           <div className="animate-in">
             {!filters.collection && <HeroSection featuredDesigns={featuredDesigns} onSelect={setSelectedDesign} onOpenStudio={openStudio} />}
@@ -603,6 +604,7 @@ export default function InkVaultApp() {
             </div>
           </div>
         )}
+        </div>
       </main>
 
       <footer className="footer">
