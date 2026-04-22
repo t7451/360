@@ -26,7 +26,7 @@ Site settings → **Environment variables** → add:
 
 | Variable | Value |
 |---|---|
-| `VITE_FIREBASE_API_KEY` | `AIzaSyACtmoBhGuNntHDlyGYcR8dwACtXH7KD3g` |
+| `VITE_FIREBASE_API_KEY` | *(from Firebase Console → Project Settings → Your apps → Web app)* |
 | `VITE_FIREBASE_AUTH_DOMAIN` | `dforge-c8c59.firebaseapp.com` |
 | `VITE_FIREBASE_PROJECT_ID` | `dforge-c8c59` |
 | `VITE_FIREBASE_STORAGE_BUCKET` | `dforge-c8c59.firebasestorage.app` |
