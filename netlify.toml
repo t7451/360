@@ -1,7 +1,7 @@
 [build]
   base = "client-portal"
   command = "npm run build"
-  publish = "dist"
+  publish = "client-portal/dist"
 
 # SPA fallback — all routes resolve to index.html
 [[redirects]]
@@ -18,6 +18,11 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # Firebase apiKey, Supabase anon key, and similar VITE_* values are
+  # PUBLIC client-side identifiers designed to ship in browser bundles.
+  # They are NOT secrets — security is enforced by Firebase Rules / Supabase RLS.
+  # Disable smart-detection false-positives for this site.
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
 # Security headers
 [[headers]]

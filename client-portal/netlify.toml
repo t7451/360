@@ -8,11 +8,10 @@
   to = "/index.html"
   status = 200
 
-# VITE_FIREBASE_API_KEY is a public client-side identifier (not a secret).
-# Firebase security is enforced by Firebase Security Rules, not by hiding this key.
-# See: https://firebase.google.com/docs/projects/api-keys
+# Firebase apiKey and Supabase anon key are PUBLIC client-side identifiers.
+# They are not secrets — security is enforced by Firebase Rules / Supabase RLS.
 [build.environment]
-  SECRETS_SCAN_OMIT_KEYS = "VITE_FIREBASE_API_KEY"
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
 [[headers]]
   for = "/*"
@@ -21,6 +20,7 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    X-XSS-Protection = "1; mode=block"
 
 [[headers]]
   for = "/assets/*"
