@@ -1,7 +1,6 @@
 [build]
-  base = "client-portal"
-  command = "npm run build"
-  publish = "dist"
+  command = "cd client-portal && npm run build"
+  publish = "client-portal/dist"
 
 # SPA fallback — all routes resolve to index.html
 [[redirects]]
