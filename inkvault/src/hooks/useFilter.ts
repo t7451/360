@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────
 // USE FILTER HOOK
 // ─────────────────────────────────────────────
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Design } from '../types';
 
 interface FilterState {
@@ -19,12 +19,19 @@ export function useFilter(designs: Design[]) {
     collection: null
   });
 
+  // Debounced search query (300ms)
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(filters.search), 300);
+    return () => clearTimeout(timer);
+  }, [filters.search]);
+
   const filteredDesigns = useMemo(() => {
     return designs.filter(d => {
-      const matchesSearch = !filters.search ||
-        d.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-        d.style.toLowerCase().includes(filters.search.toLowerCase()) ||
-        d.description.toLowerCase().includes(filters.search.toLowerCase());
+      const matchesSearch = !debouncedSearch ||
+        d.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        d.style.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        d.description.toLowerCase().includes(debouncedSearch.toLowerCase());
       
       const matchesStyle = !filters.style || d.style === filters.style;
       const matchesPlacement = !filters.placement || d.placement === filters.placement;
@@ -37,7 +44,7 @@ export function useFilter(designs: Design[]) {
 
       return matchesSearch && matchesStyle && matchesPlacement && matchesCollection;
     });
-  }, [designs, filters]);
+  }, [designs, debouncedSearch, filters.style, filters.placement, filters.collection]);
 
   const setSearch = (search: string) => setFilters(prev => ({ ...prev, search }));
   const setStyle = (style: string | null) => setFilters(prev => ({ ...prev, style }));
@@ -48,10 +55,13 @@ export function useFilter(designs: Design[]) {
   return {
     filters,
     filteredDesigns,
+    debouncedSearch,
     setSearch,
     setStyle,
     setPlacement,
     setCollection,
-    clearFilters
+    clearFilters,
+    resultCount: filteredDesigns.length,
+    hasActiveFilters: !!filters.search || !!filters.style || !!filters.placement,
   };
 }

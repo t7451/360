@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
 import { Box, Zap, ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 
 const ASSET_TYPES = [
   { value: 'tattoo_design', label: 'Tattoo Design', desc: 'Custom tattoo artwork booking from InkVault flash library', price: '$80', icon: '🎨' },
@@ -101,12 +102,13 @@ export function NewOrder() {
       }>('/api/orders', body, token);
 
       if (data.success && data.data.checkoutUrl) {
+        toast.success('Order created! Redirecting to payment...');
         window.location.href = data.data.checkoutUrl;
       } else {
-        alert(data.error || 'Failed to create order');
+        toast.error(data.error || 'Failed to create order');
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Network error. Please try again.');
+      toast.error(err instanceof Error ? err.message : 'Network error. Please try again.');
     } finally {
       setLoading(false);
     }

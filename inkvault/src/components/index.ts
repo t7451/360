@@ -1,6 +1,7 @@
 // ─────────────────────────────────────────────
 // COMPONENTS EXPORT
 // ─────────────────────────────────────────────
+export { SearchBar } from './SearchBar';
 export { AIDesignStudio } from './AIDesignStudio';
 export type { AIDesignStudioProps } from './AIDesignStudio';
 export { PinterestEmbed, PinterestGrid, PinterestProfile, PinterestPin } from './PinterestEmbed';

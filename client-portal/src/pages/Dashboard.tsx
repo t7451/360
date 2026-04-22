@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api, ApiError } from '../lib/api';
 import { Plus, Download, Clock, CheckCircle, AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
+import { DashboardSkeleton } from '../components/Skeleton';
 
 const INKVAULT_URL = import.meta.env.VITE_INKVAULT_URL || 'https://inkvault.netlify.app';
 
@@ -41,6 +43,7 @@ export function Dashboard() {
     } catch (err) {
       if (!(err instanceof ApiError && err.status === 401)) {
         console.error('Failed to fetch orders:', err);
+        toast.error('Failed to load orders. Please refresh.');
       }
     } finally {
       setLoading(false);
@@ -57,7 +60,7 @@ export function Dashboard() {
           </Link>
           <div className="flex items-center gap-4">
             <span className="text-sm text-zinc-500">{user?.email}</span>
-            <button onClick={logout} className="text-sm text-zinc-500 hover:text-white transition">Log out</button>
+            <button onClick={() => { logout(); toast.success('Signed out'); }} className="text-sm text-zinc-500 hover:text-white transition">Log out</button>
           </div>
         </div>
       </nav>
@@ -96,9 +99,7 @@ export function Dashboard() {
 
         {/* Orders List */}
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-zinc-500">
-            <Loader2 className="animate-spin mr-2" size={20} /> Loading orders...
-          </div>
+          <DashboardSkeleton />
         ) : orders.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-800 py-20 text-center">
             <p className="text-zinc-500">No orders yet.</p>

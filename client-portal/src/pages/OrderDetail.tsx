@@ -251,6 +251,7 @@ export function OrderDetail() {
                       </div>
                       <a
                         href={asset.downloadUrl}
+                        onClick={() => toast.success('Download started')}
                         className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium hover:bg-emerald-500 transition"
                       >
                         <Download size={14} /> Download

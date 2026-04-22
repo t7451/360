@@ -85,7 +85,7 @@ body {
   background: transparent;
   border: none; color: var(--text-muted);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease;
   text-transform: uppercase;
   position: relative;
   min-height: 44px;
@@ -93,6 +93,21 @@ body {
 
 .nav-tab:hover { color: var(--text); }
 .nav-tab.active { background: var(--accent); color: #fff; }
+
+/* Active tab underline indicator */
+.nav-tab::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 2px;
+  background: #a78bfa;
+  border-radius: 2px 2px 0 0;
+  transition: width 0.3s ease;
+}
+.nav-tab.active::after { width: 20px; }
 
 .nav-tab .badge {
   position: absolute; top: 2px; right: 4px;
@@ -359,6 +374,12 @@ body {
 
 .filter-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
 
+/* 10. Smooth scroll snap for filter row */
+.filter-row-scroll {
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+}
+
 .filter-chip {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px; letter-spacing: 1px;
@@ -367,12 +388,14 @@ body {
   border: 1px solid var(--border);
   color: var(--text-muted);
   cursor: pointer;
-  transition: all 0.15s ease;
+  /* 7. Filter pill active state transition */
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
   text-transform: uppercase;
+  scroll-snap-align: start;
 }
 
 .filter-chip:hover { border-color: var(--text-muted); color: var(--text); }
-.filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; transform: scale(1.05); }
 
 .active-filter-bar {
   display: flex; align-items: center; justify-content: space-between;
@@ -424,14 +447,14 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   overflow: hidden;
-  transition: all 0.25s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   position: relative;
 }
 
 .flash-card:hover {
   border-color: var(--accent);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(196, 30, 30, 0.1);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5);
 }
 
 .flash-preview {
@@ -1161,6 +1184,71 @@ body {
 
 .animate-in { animation: slideUp 0.3s ease forwards; }
 
+/* 1. Card entrance — fade-in-up */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.flash-card { animation: fadeInUp 0.35s ease both; }
+
+.flash-card:nth-child(1)  { animation-delay: 0.00s; }
+.flash-card:nth-child(2)  { animation-delay: 0.04s; }
+.flash-card:nth-child(3)  { animation-delay: 0.08s; }
+.flash-card:nth-child(4)  { animation-delay: 0.12s; }
+.flash-card:nth-child(5)  { animation-delay: 0.16s; }
+.flash-card:nth-child(6)  { animation-delay: 0.20s; }
+.flash-card:nth-child(7)  { animation-delay: 0.24s; }
+.flash-card:nth-child(8)  { animation-delay: 0.28s; }
+.flash-card:nth-child(9)  { animation-delay: 0.32s; }
+.flash-card:nth-child(10) { animation-delay: 0.36s; }
+.flash-card:nth-child(11) { animation-delay: 0.40s; }
+.flash-card:nth-child(12) { animation-delay: 0.44s; }
+
+/* 3. Heart/favorite button pulse */
+@keyframes heartPop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+.flash-fav-btn.favorited {
+  animation: heartPop 0.3s ease;
+  color: #ef4444;
+}
+
+/* 4. Design Studio modal — scale+fade entrance */
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* 6. AR overlay full-screen slide-up */
+@keyframes arSlideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+/* 8. Page-level tab crossfade */
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.tab-content { animation: tabFadeIn 0.2s ease; }
+
+/* 9. Skeleton shimmer */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+.flash-img-loading {
+  background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
 /* ── Footer ───────────────────────────────── */
 .footer {
   border-top: 1px solid var(--border);
@@ -1217,6 +1305,7 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  animation: modalIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .studio-header {
@@ -1679,6 +1768,7 @@ body {
   z-index: 1000;
   display: flex;
   flex-direction: column;
+  animation: arSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .ar-header {
@@ -2181,3 +2271,22 @@ body {
   z-index: 2;
 }
 .book-design-btn:hover { background: rgb(109, 40, 217); }
+
+/* ── Enhanced Search ───────────────────────────────────────────────────── */
+.search-wrapper { position: relative; }
+.search-input-row { display: flex; align-items: center; gap: 8px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 10px 14px; transition: border-color 0.15s; }
+.search-input-row.focused { border-color: #a78bfa; }
+.search-input { flex: 1; background: none; border: none; outline: none; color: #fff; font-size: 16px; }
+.search-icon { color: #666; flex-shrink: 0; }
+.search-clear { background: none; border: none; color: #666; cursor: pointer; padding: 2px; display: flex; align-items: center; }
+.search-kbd { font-size: 11px; color: #555; background: #222; border: 1px solid #333; border-radius: 4px; padding: 1px 5px; font-family: monospace; flex-shrink: 0; }
+.search-result-count { font-size: 12px; color: #666; margin-top: 6px; padding: 0 4px; }
+.search-dropdown { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 8px; z-index: 50; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+.search-dropdown-header { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px 8px; font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.05em; }
+.search-dropdown-clear { background: none; border: none; color: #666; cursor: pointer; font-size: 11px; }
+.search-dropdown-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border-radius: 6px; background: none; border: none; color: #ccc; cursor: pointer; font-size: 14px; text-align: left; }
+.search-dropdown-item:hover { background: #252525; }
+.search-empty { padding: 12px 4px; }
+.search-suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+.search-suggestion-pill { background: #1e1e2e; border: 1px solid #a78bfa44; color: #a78bfa; border-radius: 20px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
+.search-highlight { background: rgba(167,139,250,0.3); color: #fff; border-radius: 2px; padding: 0 1px; }

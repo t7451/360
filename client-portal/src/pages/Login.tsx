@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { toast } from 'sonner';
 
 /** Map Firebase error codes to human-readable messages */
 function friendlyError(err: unknown): string {
@@ -46,6 +47,7 @@ export function Login() {
       if (mode === 'reset') {
         await resetPassword(email);
         setInfo('Password reset email sent! Check your inbox.');
+        toast.success('Reset email sent — check your inbox');
         setMode('login');
       } else if (mode === 'signup') {
         await signup(email, password);
@@ -55,7 +57,9 @@ export function Login() {
         navigate('/dashboard');
       }
     } catch (err) {
-      setError(friendlyError(err));
+      const msg = friendlyError(err);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

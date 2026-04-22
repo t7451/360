@@ -8,10 +8,11 @@ import './App.css';
 
 import type { Design, Artist, TabType, StudioTabType, CollectionViewType } from './types';
 import { DESIGNS, ARTISTS, TESTIMONIALS, COLLECTIONS, STYLES, PLACEMENTS } from './data';
-import { useFavorites, useFilter } from './hooks';
-import { PinterestProfile, PinterestGrid, ARPreview } from './components';
+import { useFavorites, useFilter, useSearchHistory } from './hooks';
+import { PinterestProfile, PinterestGrid, ARPreview, SearchBar } from './components';
 import { AIDesignStudio } from './components/AIDesignStudio';
 import { DrawingCanvas } from './components/DrawingCanvas';
+import { Highlight } from './lib/highlight';
 
 // ─────────────────────────────────────────────
 // INKVAULT FLASH LIBRARY v3.0
@@ -191,17 +192,37 @@ function BookingModal({ artist, design, isOpen, onClose }: { artist: Artist | nu
 }
 
 // Flash Card
-function FlashCard({ design, isFaved, onToggleFav, onSelect, onOpenStudio, onOpenAR, onBookDesign }: { design: Design; isFaved: boolean; onToggleFav: (id: number) => void; onSelect: (d: Design) => void; onOpenStudio: (d: Design) => void; onOpenAR: (d: Design) => void; onBookDesign: (d: Design) => void }) {
+function FlashCard({ design, isFaved, onToggleFav, onSelect, onOpenStudio, onOpenAR, onBookDesign, searchQuery }: { design: Design; isFaved: boolean; onToggleFav: (id: number) => void; onSelect: (d: Design) => void; onOpenStudio: (d: Design) => void; onOpenAR: (d: Design) => void; onBookDesign: (d: Design) => void; searchQuery?: string }) {
   const artist = ARTISTS.find(a => a.id === design.artistId);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [justFavorited, setJustFavorited] = useState(false);
+
+  function handleFavorite(e: React.MouseEvent) {
+    e.stopPropagation();
+    onToggleFav(design.id);
+    setJustFavorited(true);
+    setTimeout(() => setJustFavorited(false), 400);
+  }
+
   return (
     <div className="flash-card">
       <div className="flash-preview" onClick={() => onSelect(design)}>
-        <img src={design.image} alt={design.title} className="flash-image" />
+        <img
+          src={design.image}
+          alt={design.title}
+          className={`flash-image ${imageLoaded ? '' : 'flash-img-loading'}`}
+          onLoad={() => setImageLoaded(true)}
+        />
         <div className="flash-overlay" />
         {design.new && <span className="flash-badge new">NEW</span>}
         {design.trending && !design.new && <span className="flash-badge trending">HOT</span>}
         <span className="flash-number">#{String(design.id).padStart(3, '0')}</span>
-        <button className={`flash-fav-btn ${isFaved ? 'faved' : ''}`} onClick={(e) => { e.stopPropagation(); onToggleFav(design.id); }}><Heart size={18} fill={isFaved ? "currentColor" : "none"} /></button>
+        <button
+          className={`flash-fav-btn ${isFaved ? 'faved' : ''} ${justFavorited ? 'favorited' : ''}`}
+          onClick={handleFavorite}
+        >
+          <Heart size={18} fill={isFaved ? "currentColor" : "none"} />
+        </button>
         <button
           className="book-design-btn"
           onClick={(e) => { e.stopPropagation(); onBookDesign(design); }}
@@ -211,7 +232,7 @@ function FlashCard({ design, isFaved, onToggleFav, onSelect, onOpenStudio, onOpe
       </div>
       <div className="flash-info">
         <div className="flash-style-tag">{design.style}</div>
-        <div className="flash-title">{design.title}</div>
+        <div className="flash-title"><Highlight text={design.title} query={searchQuery || ''} /></div>
         <div className="flash-meta"><span className="flash-artist">{artist?.name}</span><span className="flash-price">${design.price}</span></div>
         <div className="flash-placement-tag">{design.placement} • {design.size}</div>
         <div className="flash-colors">{design.colors.map((c, i) => <div key={i} className="flash-color-dot" style={{ background: c }} />)}</div>
@@ -377,7 +398,8 @@ export default function InkVaultApp() {
   const [showAIStudio, setShowAIStudio] = useState(false);
 
   const { favorites, toggleFavorite, isFavorite, count: favCount } = useFavorites();
-  const { filters, filteredDesigns, setSearch, setStyle, setPlacement, setCollection } = useFilter(DESIGNS);
+  const { filters, filteredDesigns, debouncedSearch, setSearch, setStyle, setPlacement, setCollection } = useFilter(DESIGNS);
+  const { history: searchHistory, addToHistory, clearHistory } = useSearchHistory();
 
   const openStudio = useCallback((design: Design) => setStudioDesign(design), []);
   const closeStudio = useCallback(() => setStudioDesign(null), []);
@@ -427,14 +449,25 @@ export default function InkVaultApp() {
               </div>
             )}
 
-            <div className="search-bar-sticky"><div className="search-bar"><Search size={18} className="search-icon" /><input type="text" placeholder="SEARCH DESIGNS, STYLES, PLACEMENTS..." value={filters.search} onChange={(e) => setSearch(e.target.value)} />{filters.search && <button className="search-clear" onClick={() => setSearch('')}><X size={18} /></button>}</div></div>
+            <div className="search-bar-sticky">
+              <SearchBar
+                value={filters.search}
+                onChange={setSearch}
+                onCommit={addToHistory}
+                resultCount={filteredDesigns.length}
+                hasQuery={!!filters.search}
+                history={searchHistory}
+                onSelectHistory={(term) => { setSearch(term); addToHistory(term); }}
+                onClearHistory={clearHistory}
+              />
+            </div>
 
             <div className="filter-row filter-row-scroll"><button className={`filter-chip ${!filters.style ? 'active' : ''}`} onClick={() => setStyle(null)}>ALL STYLES</button>{STYLES.map(s => <button key={s} className={`filter-chip ${filters.style === s ? 'active' : ''}`} onClick={() => setStyle(filters.style === s ? null : s)}>{s}</button>)}</div>
             <div className="filter-row filter-row-scroll"><button className={`filter-chip ${!filters.placement ? 'active' : ''}`} onClick={() => setPlacement(null)}>ALL PLACEMENTS</button>{PLACEMENTS.map(p => <button key={p} className={`filter-chip ${filters.placement === p ? 'active' : ''}`} onClick={() => setPlacement(filters.placement === p ? null : p)}>{p}</button>)}</div>
 
             <div className="section-header"><h2>{filters.collection ? COLLECTIONS.find(c => c.id === filters.collection)?.name : 'FLASH LIBRARY'}</h2><div className="count">{filteredDesigns.length} DESIGNS FOUND</div></div>
 
-            <div className="flash-grid">{filteredDesigns.map(d => <FlashCard key={d.id} design={d} isFaved={isFavorite(d.id)} onToggleFav={toggleFavorite} onSelect={setSelectedDesign} onOpenStudio={openStudio} onOpenAR={openAR} onBookDesign={bookDesign} />)}</div>
+            <div className="flash-grid">{filteredDesigns.map(d => <FlashCard key={d.id} design={d} isFaved={isFavorite(d.id)} onToggleFav={toggleFavorite} onSelect={setSelectedDesign} onOpenStudio={openStudio} onOpenAR={openAR} onBookDesign={bookDesign} searchQuery={debouncedSearch} />)}</div>
             {filteredDesigns.length === 0 && <div className="empty-state"><div className="empty-state-icon">⊘</div><h3>NO DESIGNS FOUND</h3><p>TRY ADJUSTING YOUR FILTERS OR SEARCH TERMS</p></div>}
             
             <TestimonialsSection />
