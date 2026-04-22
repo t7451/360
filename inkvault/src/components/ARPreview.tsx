@@ -25,6 +25,7 @@ interface ARPreviewProps {
   design: Design | null;
   designs: Design[];
   onClose: () => void;
+  onBookDesign?: (design: Design) => void;
 }
 
 function getDistance(t1: React.Touch, t2: React.Touch): number {
@@ -37,7 +38,7 @@ function getAngle(t1: React.Touch, t2: React.Touch): number {
   return Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX);
 }
 
-export default function ARPreview({ design: initialDesign, designs, onClose }: ARPreviewProps) {
+export default function ARPreview({ design: initialDesign, designs, onClose, onBookDesign }: ARPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -372,6 +373,13 @@ export default function ARPreview({ design: initialDesign, designs, onClose }: A
           <Download size={20} />
           <span>Save</span>
         </button>
+
+        {onBookDesign && activeDesign && (
+          <button className="ar-btn" onClick={() => onBookDesign(activeDesign)} title="Book this design">
+            <span style={{ fontSize: 20 }}>📅</span>
+            <span>Book</span>
+          </button>
+        )}
 
         <div className="ar-controls">
           <div className="ar-control-row">

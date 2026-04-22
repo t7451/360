@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
 import { Box, Zap, ArrowLeft } from 'lucide-react';
 
 const ASSET_TYPES = [
+  { value: 'tattoo_design', label: 'Tattoo Design', desc: 'Custom tattoo artwork booking from InkVault flash library', price: '$80', icon: '🎨' },
   { value: 'product_render', label: 'Product Render', desc: 'Photorealistic 3D product mockup', price: '$100', icon: '📸' },
   { value: 'custom_stl', label: 'Custom 3D Print File', desc: 'STL/3MF file ready for 3D printing', price: '$50', icon: '🖨️' },
   { value: 'prototype_step', label: 'Rapid Prototype', desc: 'STEP file for manufacturing', price: '$150', icon: '⚙️' },
@@ -26,8 +27,10 @@ const OUTPUT_FORMATS = [
 export function NewOrder() {
   const navigate = useNavigate();
   const { token } = useAuth();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [inkvaultReferral, setInkvaultReferral] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     assetType: '' as string,
@@ -40,6 +43,27 @@ export function NewOrder() {
     depth: '',
     unit: 'mm' as 'mm' | 'cm' | 'in',
   });
+
+  useEffect(() => {
+    const designTitle = searchParams.get('design_title');
+    const designStyle = searchParams.get('design_style');
+    const designPlacement = searchParams.get('design_placement');
+    const source = searchParams.get('source');
+
+    if (designTitle && source === 'inkvault') {
+      const prefilledDescription = [
+        `Tattoo design: ${designTitle}`,
+        designStyle ? `Style: ${designStyle}` : '',
+        designPlacement ? `Placement: ${designPlacement}` : '',
+        'Referred from InkVault flash library',
+      ].filter(Boolean).join('\n');
+
+      setForm(f => ({ ...f, description: prefilledDescription, assetType: 'tattoo_design' }));
+      setInkvaultReferral(designTitle);
+      setStep(2);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleFormat = (fmt: string) => {
     setForm(prev => ({
@@ -103,6 +127,16 @@ export function NewOrder() {
           <h1 className="text-3xl font-bold tracking-tight">New Order</h1>
           <p className="mt-2 text-zinc-400">Describe what you need — our AI builds it in minutes.</p>
         </div>
+
+        {inkvaultReferral && (
+          <div className="rounded-lg border border-purple-800/50 bg-purple-950/30 px-4 py-3 mb-6 flex items-center gap-3">
+            <span className="text-purple-300">🎨</span>
+            <div>
+              <p className="text-sm font-medium text-purple-200">Design from InkVault</p>
+              <p className="text-xs text-purple-400">"{inkvaultReferral}" — pre-filled below</p>
+            </div>
+          </div>
+        )}
 
         {/* Progress */}
         <div className="mb-10 flex gap-2">

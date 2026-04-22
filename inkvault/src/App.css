@@ -2161,3 +2161,23 @@ body {
 .control-group select {
   font-size: 16px !important;
 }
+
+/* ── Book This Design Button ─────────────────────────────────────────────── */
+.book-design-btn {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(124, 58, 237, 0.9);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.2s;
+  min-height: 32px;
+  z-index: 2;
+}
+.book-design-btn:hover { background: rgb(109, 40, 217); }
