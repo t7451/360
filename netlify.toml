@@ -12,7 +12,7 @@
 # API proxy — route /api calls to your Railway backend
 [[redirects]]
   from = "/api/*"
-  to = "https://forge3d-api.up.railway.app/api/:splat"
+  to = ":RAILWAY_API_URL/api/:splat"
   status = 200
   force = true
 

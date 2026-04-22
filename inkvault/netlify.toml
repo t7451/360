@@ -5,6 +5,18 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # Firebase apiKey, Supabase anon key, and similar VITE_* values are
+  # PUBLIC client-side identifiers designed to ship in browser bundles.
+  # They are NOT secrets — security is enforced by Firebase Rules / Supabase RLS.
+  # Disable smart-detection false-positives for this site.
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
+# API proxy — route /api calls to Railway backend via env var
+[[redirects]]
+  from = "/api/*"
+  to = ":RAILWAY_API_URL/api/:splat"
+  status = 200
+  force = true
 
 # SPA catch-all
 [[redirects]]

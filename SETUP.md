@@ -20,12 +20,30 @@
 
 ---
 
-## 2 · Netlify — FORGE3D Portal
+## 2 · Netlify Environment Variables (both sites)
+
+Both the FORGE3D Portal and InkVault Netlify sites require these variables in **Site Settings → Environment variables**:
+
+| Variable | Description |
+|---|---|
+| `RAILWAY_API_URL` | Your Railway API URL, e.g. `https://your-service.up.railway.app` |
+| `VITE_API_URL` | Same URL — used by Vite to build API calls into the bundle |
+
+> **Why two variables?**  
+> `RAILWAY_API_URL` is used server-side by Netlify's redirect proxy (`:[VAR]` syntax in `netlify.toml`) — it rewrites `/api/*` requests before they leave Netlify's edge.  
+> `VITE_API_URL` is inlined at build time into the JavaScript bundle for any client-side `fetch` calls that target the API directly.  
+> Both can be set to the same Railway URL.
+
+---
+
+## 3 · Netlify — FORGE3D Portal
 
 Site settings → **Environment variables** → add:
 
 | Variable | Value |
 |---|---|
+| `RAILWAY_API_URL` | Your Railway API URL |
+| `VITE_API_URL` | Same Railway URL |
 | `VITE_FIREBASE_API_KEY` | *(from Firebase Console → Project Settings → Your apps → Web app)* |
 | `VITE_FIREBASE_AUTH_DOMAIN` | `dforge-c8c59.firebaseapp.com` |
 | `VITE_FIREBASE_PROJECT_ID` | `dforge-c8c59` |
@@ -33,7 +51,6 @@ Site settings → **Environment variables** → add:
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | `406047297987` |
 | `VITE_FIREBASE_APP_ID` | `1:406047297987:web:82cfd1d381ee457c896d76` |
 | `VITE_FIREBASE_MEASUREMENT_ID` | `G-1NEHJ9386B` |
-| `VITE_API_URL` | Your Railway API URL (or leave blank to use Netlify proxy) |
 | `VITE_INKVAULT_URL` | Your InkVault Netlify URL |
 
 Build settings:
@@ -43,7 +60,7 @@ Build settings:
 
 ---
 
-## 3 · Netlify — InkVault
+## 4 · Netlify — InkVault
 
 Create a **separate** Netlify site for InkVault:
 
@@ -52,7 +69,9 @@ Create a **separate** Netlify site for InkVault:
    - **Base directory**: `inkvault`
    - **Build command**: `npm run build`
    - **Publish directory**: `dist`
-3. No environment variables needed
+3. **Environment variables** → add:
+   - `RAILWAY_API_URL` — your Railway API URL
+   - `VITE_API_URL` — same Railway URL
 
 ---
 
