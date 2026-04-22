@@ -26,9 +26,13 @@ Site settings → **Environment variables** → add:
 
 | Variable | Value |
 |---|---|
-| `VITE_FIREBASE_API_KEY` | From firebaseConfig (step 1a) |
+| `VITE_FIREBASE_API_KEY` | `AIzaSyACtmoBhGuNntHDlyGYcR8dwACtXH7KD3g` |
 | `VITE_FIREBASE_AUTH_DOMAIN` | `dforge-c8c59.firebaseapp.com` |
 | `VITE_FIREBASE_PROJECT_ID` | `dforge-c8c59` |
+| `VITE_FIREBASE_STORAGE_BUCKET` | `dforge-c8c59.firebasestorage.app` |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | `406047297987` |
+| `VITE_FIREBASE_APP_ID` | `1:406047297987:web:82cfd1d381ee457c896d76` |
+| `VITE_FIREBASE_MEASUREMENT_ID` | `G-1NEHJ9386B` |
 | `VITE_API_URL` | Your Railway API URL (or leave blank to use Netlify proxy) |
 | `VITE_INKVAULT_URL` | Your InkVault Netlify URL |
 
