@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
+import fs from 'fs';
 import { orderRoutes } from './routes/orders';
 import { webhookRoutes } from './routes/webhooks';
 import { assetRoutes } from './routes/assets';
@@ -12,6 +13,19 @@ import { initializeQueue } from './jobs/queue';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+// Bootstrap Firebase service account from env var (Railway/production)
+// Set GOOGLE_APPLICATION_CREDENTIALS_JSON to the full service account JSON string
+if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  const tmpPath = '/tmp/firebase-sa.json';
+  try {
+    fs.writeFileSync(tmpPath, process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON, { mode: 0o600 });
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = tmpPath;
+    console.log('[FORGE3D] Firebase service account loaded from env');
+  } catch (err) {
+    console.error('[FORGE3D] Failed to write Firebase service account:', err);
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
