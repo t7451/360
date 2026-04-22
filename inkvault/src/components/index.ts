@@ -1,6 +1,8 @@
 // ─────────────────────────────────────────────
 // COMPONENTS EXPORT
 // ─────────────────────────────────────────────
+export { AIDesignStudio } from './AIDesignStudio';
+export type { AIDesignStudioProps } from './AIDesignStudio';
 export { PinterestEmbed, PinterestGrid, PinterestProfile, PinterestPin } from './PinterestEmbed';
 export { TattooOverlay } from './TattooOverlay';
 export type { TattooOverlayProps } from './TattooOverlay';

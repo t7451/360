@@ -1,6 +1,7 @@
 import { Queue, Worker, Job } from 'bullmq';
 import { RenderJob } from '../types';
 import { processRenderJob } from './renderWorker';
+import { logger } from '../lib/logger';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
@@ -25,13 +26,13 @@ let worker: Worker<RenderJob> | null = null;
 export async function initializeQueue(): Promise<void> {
   // Verify Redis connection
   await renderQueue.waitUntilReady();
-  console.log('[Queue] Connected to Redis');
+  logger.info('Connected to Redis');
 
   // Start worker
   worker = new Worker<RenderJob>(
     'forge3d-render',
     async (job: Job<RenderJob>) => {
-      console.log(`[Worker] Processing job ${job.id} for order ${job.data.orderId}`);
+      logger.info({ jobId: job.id, orderId: job.data.orderId }, 'Processing job');
       return processRenderJob(job);
     },
     {
@@ -42,19 +43,19 @@ export async function initializeQueue(): Promise<void> {
   );
 
   worker.on('completed', (job) => {
-    console.log(`[Worker] Job ${job.id} completed for order ${job.data.orderId}`);
+    logger.info({ jobId: job.id, orderId: job.data.orderId }, 'Job completed');
   });
 
   worker.on('failed', (job, err) => {
-    console.error(`[Worker] Job ${job?.id} failed:`, err.message);
+    logger.error({ jobId: job?.id, orderId: job?.data.orderId, error: err.message }, 'Job failed');
     // TODO: Send Slack alert on final failure (attempt 3)
     if (job && job.attemptsMade >= 3) {
-      console.error(`[Worker] Job ${job.id} moved to dead letter queue after 3 attempts`);
+      logger.error({ jobId: job.id, orderId: job.data.orderId }, 'Job moved to dead letter queue after 3 attempts');
       notifySlack(job.data.orderId, err.message);
     }
   });
 
-  console.log('[Worker] Render worker started (concurrency: 2)');
+  logger.info('Render worker started (concurrency: 2)');
 }
 
 // --- Add job to queue ---
@@ -78,6 +79,6 @@ async function notifySlack(orderId: string, error: string): Promise<void> {
       }),
     });
   } catch (err) {
-    console.error('[Slack] Notification failed:', err);
+    logger.error({ error: err }, 'Slack notification failed');
   }
 }

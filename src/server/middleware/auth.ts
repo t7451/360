@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import admin from 'firebase-admin';
+import { logger } from '../lib/logger';
 import { AuthUser } from '../types';
 
 // Initialize Firebase Admin once.
@@ -41,7 +42,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
     next();
   } catch (err: any) {
-    console.error('[Auth] Token verification failed:', err.message);
+    logger.warn({ requestId: (req as any).id, error: err.message }, 'Token verification failed');
     res.status(401).json({ success: false, error: 'Invalid or expired token' });
   }
 }
