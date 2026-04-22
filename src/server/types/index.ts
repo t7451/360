@@ -51,6 +51,7 @@ export interface Order {
   jobId: string | null;
   assets: DeliveredAsset[];
   revisions: Revision[];
+  progress?: number;
   createdAt: string;
   updatedAt: string;
 }

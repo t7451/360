@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuid } from 'uuid';
 import Stripe from 'stripe';
+import admin from 'firebase-admin';
 import { addRenderJob } from '../jobs/queue';
 import { ApiResponse, Order, OrderRequest, PRICING } from '../types';
 import { createOrder, getOrder, listOrdersByUser, updateOrderStatus } from '../lib/ordersStore';
@@ -174,6 +175,71 @@ router.get('/:id/checkout', async (req: Request, res: Response, next: NextFuncti
     console.error('[Orders] Checkout regeneration error:', err);
     next(err);
   }
+});
+
+// GET /api/orders/:id/status/stream  — SSE real-time status
+// Auth via ?token= query param (SSE can't set Authorization header)
+router.get('/:id/status/stream', async (req: Request, res: Response) => {
+  const { id } = req.params as { id: string };
+  const token = req.query.token as string | undefined;
+
+  if (!token) {
+    res.status(401).end('Missing token');
+    return;
+  }
+  let uid: string;
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    uid = decoded.uid;
+  } catch {
+    res.status(401).end('Invalid token');
+    return;
+  }
+
+  const order = await getOrder(id);
+  if (!order) { res.status(404).end('Order not found'); return; }
+  if (order.userId !== uid) { res.status(403).end('Forbidden'); return; }
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+
+  const sendStatus = (status: string, progress?: number) => {
+    res.write(`data: ${JSON.stringify({ status, progress: progress ?? null, timestamp: new Date().toISOString() })}\n\n`);
+  };
+
+  sendStatus(order.status, order.progress);
+
+  const unsubscribe = admin.firestore()
+    .collection('orders')
+    .doc(id)
+    .onSnapshot((snap) => {
+      if (!snap.exists) return;
+      const data = snap.data()!;
+      sendStatus(data.status, data.progress);
+
+      if (['completed', 'failed', 'refunded'].includes(data.status)) {
+        res.write('event: done\ndata: {}\n\n');
+        unsubscribe();
+        res.end();
+      }
+    }, (err) => {
+      res.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`);
+      res.end();
+    });
+
+  const keepalive = setInterval(() => {
+    res.write(': keepalive\n\n');
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(keepalive);
+    unsubscribe();
+  });
 });
 
 // POST /api/orders/:id/revisions — Request revision

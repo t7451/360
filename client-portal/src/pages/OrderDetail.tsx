@@ -12,6 +12,7 @@ interface Order {
   priceUsd: number;
   priority: string;
   outputFormats: string[];
+  progress?: number | null;
   assets: Array<{ id: string; filename: string; format: string; downloadUrl: string }>;
   revisions: Array<{ id: string; description: string; status: string }>;
   createdAt: string;
@@ -24,25 +25,44 @@ export function OrderDetail() {
   const { token } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
     fetchOrder();
+  }, [id]);
 
-    // Poll every 8s when order is in progress
-    intervalRef.current = setInterval(() => {
-      setOrder(prev => {
-        if (prev && !['completed', 'failed', 'pending_payment'].includes(prev.status)) {
-          fetchOrder();
-        }
-        return prev;
-      });
-    }, 8000);
+  useEffect(() => {
+    if (!id || !token) return;
+
+    const terminalStates = ['completed', 'failed', 'refunded'];
+    if (order && terminalStates.includes(order.status)) return;
+
+    const API_BASE = import.meta.env.VITE_API_URL ?? '';
+    const url = `${API_BASE}/api/orders/${id}/status/stream?token=${encodeURIComponent(token)}`;
+
+    const es = new EventSource(url);
+    eventSourceRef.current = es;
+
+    es.onmessage = (e) => {
+      const { status, progress } = JSON.parse(e.data);
+      setOrder(prev => prev ? { ...prev, status, progress } : prev);
+    };
+
+    es.addEventListener('done', () => {
+      es.close();
+      fetchOrder();
+    });
+
+    es.onerror = () => {
+      es.close();
+      fetchOrder();
+    };
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      es.close();
+      eventSourceRef.current = null;
     };
-  }, [id]);
+  }, [id, token, order?.status]);
 
   async function fetchOrder() {
     try {
@@ -72,7 +92,7 @@ export function OrderDetail() {
   }
 
   const isProcessing = ['queued', 'processing', 'rendering'].includes(order.status);
-  const progressPct = order.status === 'queued' ? 15 : order.status === 'processing' ? 50 : 80;
+  const progressPct = order.progress != null ? order.progress : order.status === 'queued' ? 15 : order.status === 'processing' ? 50 : 80;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
@@ -141,6 +161,17 @@ export function OrderDetail() {
                 style={{ width: `${progressPct}%` }}
               />
             </div>
+            {order.progress != null && order.status === 'rendering' && (
+              <div className="mt-2">
+                <div className="h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
+                  <div
+                    className="h-full bg-purple-500 transition-all duration-500"
+                    style={{ width: `${order.progress}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-zinc-500">{order.progress}% complete</p>
+              </div>
+            )}
           </div>
         )}
 
