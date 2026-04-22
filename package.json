@@ -7,15 +7,18 @@
   "license": "MIT",
   "workspaces": [
     "src/server",
-    "client-portal"
+    "client-portal",
+    "inkvault"
   ],
   "scripts": {
     "dev:server": "cd src/server && npm run dev",
     "dev:portal": "cd client-portal && npm run dev",
     "dev:mcp": "cd src/mcp && python forge3d_mcp_server.py",
-    "build": "npm run build:server && npm run build:portal",
+    "dev:inkvault": "cd inkvault && npm run dev",
+    "build": "npm run build:server && npm run build:portal && npm run build:inkvault",
     "build:server": "cd src/server && npm run build",
     "build:portal": "cd client-portal && npm run build",
+    "build:inkvault": "cd inkvault && npm run build",
     "lint": "npm run lint --workspaces",
     "test": "npm run test --workspaces"
   },
