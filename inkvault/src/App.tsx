@@ -2,14 +2,15 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   X, Eye, PenTool, Palette, Ruler, Download, Printer, Check,
   Heart, Search, Star, Calendar, Sparkles, Flame, TrendingUp, Clock,
-  Mail, Phone, Instagram, Pin
+  Mail, Phone, Instagram, Pin, Camera, LayoutGrid, MapPin, Users, BookMarked
 } from 'lucide-react';
 import './App.css';
 
 import type { Design, Artist, TabType, StudioTabType, CollectionViewType } from './types';
 import { DESIGNS, ARTISTS, TESTIMONIALS, COLLECTIONS, STYLES, PLACEMENTS } from './data';
 import { useFavorites, useFilter } from './hooks';
-import { PinterestProfile, PinterestGrid } from './components';
+import { PinterestProfile, PinterestGrid, ARPreview } from './components';
+import { DrawingCanvas } from './components/DrawingCanvas';
 
 // ─────────────────────────────────────────────
 // INKVAULT FLASH LIBRARY v3.0
@@ -38,18 +39,24 @@ function DesignStudio({ design, isOpen, onClose }: { design: Design; isOpen: boo
           <button className="studio-close" onClick={onClose}><X size={20} /></button>
         </div>
         <div className="studio-tabs">
-          {(['preview', 'stencil', 'customize', 'measure'] as StudioTabType[]).map((tab) => (
+          {(['preview', 'stencil', 'customize', 'measure', 'draw'] as StudioTabType[]).map((tab) => (
             <button key={tab} className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>
               {tab === 'preview' && <Eye size={16} />}
               {tab === 'stencil' && <PenTool size={16} />}
               {tab === 'customize' && <Palette size={16} />}
               {tab === 'measure' && <Ruler size={16} />}
+              {tab === 'draw' && <PenTool size={16} />}
               <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
             </button>
           ))}
         </div>
         <div className="studio-content">
-          <div className="studio-canvas">
+          {activeTab === 'draw' ? (
+            <div className="studio-draw-fullwidth">
+              <DrawingCanvas backgroundImage={design.image} width={400} height={500} />
+            </div>
+          ) : (
+          <><div className="studio-canvas">
             <div className="canvas-wrapper">
               <img
                 src={design.image}
@@ -119,7 +126,8 @@ function DesignStudio({ design, isOpen, onClose }: { design: Design; isOpen: boo
                 <div className="measure-stats"><div className="measure-stat"><label>Aspect Ratio</label><span>{(measureSettings.actualWidth / measureSettings.actualHeight).toFixed(2)}:1</span></div><div className="measure-stat"><label>Area</label><span>{(measureSettings.actualWidth * measureSettings.actualHeight).toFixed(2)} sq in</span></div><div className="measure-stat"><label>Est. Time</label><span>{Math.round(measureSettings.actualWidth * measureSettings.actualHeight * 0.5)} hrs</span></div></div>
               </div>
             )}
-          </div>
+          </div></>
+          )}
         </div>
       </div>
     </div>
@@ -168,7 +176,7 @@ function BookingModal({ artist, design, isOpen, onClose }: { artist: Artist | nu
 }
 
 // Flash Card
-function FlashCard({ design, isFaved, onToggleFav, onSelect, onOpenStudio }: { design: Design; isFaved: boolean; onToggleFav: (id: number) => void; onSelect: (d: Design) => void; onOpenStudio: (d: Design) => void }) {
+function FlashCard({ design, isFaved, onToggleFav, onSelect, onOpenStudio, onOpenAR }: { design: Design; isFaved: boolean; onToggleFav: (id: number) => void; onSelect: (d: Design) => void; onOpenStudio: (d: Design) => void; onOpenAR: (d: Design) => void }) {
   const artist = ARTISTS.find(a => a.id === design.artistId);
   return (
     <div className="flash-card">
@@ -178,7 +186,7 @@ function FlashCard({ design, isFaved, onToggleFav, onSelect, onOpenStudio }: { d
         {design.new && <span className="flash-badge new">NEW</span>}
         {design.trending && !design.new && <span className="flash-badge trending">HOT</span>}
         <span className="flash-number">#{String(design.id).padStart(3, '0')}</span>
-        <button className={`flash-fav-btn ${isFaved ? 'faved' : ''}`} onClick={(e) => { e.stopPropagation(); onToggleFav(design.id); }}><Heart size={16} fill={isFaved ? "currentColor" : "none"} /></button>
+        <button className={`flash-fav-btn ${isFaved ? 'faved' : ''}`} onClick={(e) => { e.stopPropagation(); onToggleFav(design.id); }}><Heart size={18} fill={isFaved ? "currentColor" : "none"} /></button>
       </div>
       <div className="flash-info">
         <div className="flash-style-tag">{design.style}</div>
@@ -187,6 +195,7 @@ function FlashCard({ design, isFaved, onToggleFav, onSelect, onOpenStudio }: { d
         <div className="flash-placement-tag">{design.placement} • {design.size}</div>
         <div className="flash-colors">{design.colors.map((c, i) => <div key={i} className="flash-color-dot" style={{ background: c }} />)}</div>
         <button className="studio-btn" onClick={() => onOpenStudio(design)}><PenTool size={14} />Open Studio</button>
+        <button className="ar-try-btn" onClick={() => onOpenAR(design)}>📸 Try in AR</button>
       </div>
     </div>
   );
@@ -342,6 +351,8 @@ export default function InkVaultApp() {
   const [bookingArtist, setBookingArtist] = useState<Artist | null>(null);
   const [bookingDesign, setBookingDesign] = useState<Design | null>(null);
   const [bodyPlacement, setBodyPlacement] = useState<string | null>(null);
+  const [showAR, setShowAR] = useState(false);
+  const [arDesign, setArDesign] = useState<Design | null>(null);
 
   const { favorites, toggleFavorite, isFavorite, count: favCount } = useFavorites();
   const { filters, filteredDesigns, setSearch, setStyle, setPlacement, setCollection } = useFilter(DESIGNS);
@@ -351,6 +362,7 @@ export default function InkVaultApp() {
   const openBooking = useCallback((artist: Artist, design: Design | null = null) => { setBookingArtist(artist); setBookingDesign(design); }, []);
   const closeBooking = useCallback(() => { setBookingArtist(null); setBookingDesign(null); }, []);
   const handleCollectionSelect = useCallback((collection: string) => { setCollection(collection); setActiveTab('flash'); }, [setCollection]);
+  const openAR = useCallback((design: Design) => { setArDesign(design); setShowAR(true); }, []);
 
   const bodyFilteredDesigns = bodyPlacement ? DESIGNS.filter(d => d.placement === bodyPlacement) : [];
   const favedDesigns = DESIGNS.filter(d => favorites.has(d.id));
@@ -361,7 +373,8 @@ export default function InkVaultApp() {
       <header className="header">
         <div className="header-inner">
           <div className="logo"><div className="logo-mark">IV</div>INK<span>VAULT</span></div>
-          <div className="nav-tabs">
+          {/* Desktop top nav — hidden on mobile */}
+          <div className="nav-tabs desktop-nav">
             {(['flash', 'placement', 'artists', 'vault', 'pinterest'] as TabType[]).map((tab) => (
               <button key={tab} className={`nav-tab ${activeTab === tab ? 'active' : ''}`} onClick={() => setActiveTab(tab)}>
                 {tab === 'pinterest' ? <><Pin size={14} />PINTEREST</> : tab.toUpperCase()}
@@ -392,14 +405,14 @@ export default function InkVaultApp() {
               </div>
             )}
 
-            <div className="search-bar"><Search size={18} className="search-icon" /><input type="text" placeholder="SEARCH DESIGNS, STYLES, PLACEMENTS..." value={filters.search} onChange={(e) => setSearch(e.target.value)} />{filters.search && <button className="search-clear" onClick={() => setSearch('')}><X size={18} /></button>}</div>
+            <div className="search-bar-sticky"><div className="search-bar"><Search size={18} className="search-icon" /><input type="text" placeholder="SEARCH DESIGNS, STYLES, PLACEMENTS..." value={filters.search} onChange={(e) => setSearch(e.target.value)} />{filters.search && <button className="search-clear" onClick={() => setSearch('')}><X size={18} /></button>}</div></div>
 
-            <div className="filter-row"><button className={`filter-chip ${!filters.style ? 'active' : ''}`} onClick={() => setStyle(null)}>ALL STYLES</button>{STYLES.map(s => <button key={s} className={`filter-chip ${filters.style === s ? 'active' : ''}`} onClick={() => setStyle(filters.style === s ? null : s)}>{s}</button>)}</div>
-            <div className="filter-row"><button className={`filter-chip ${!filters.placement ? 'active' : ''}`} onClick={() => setPlacement(null)}>ALL PLACEMENTS</button>{PLACEMENTS.map(p => <button key={p} className={`filter-chip ${filters.placement === p ? 'active' : ''}`} onClick={() => setPlacement(filters.placement === p ? null : p)}>{p}</button>)}</div>
+            <div className="filter-row filter-row-scroll"><button className={`filter-chip ${!filters.style ? 'active' : ''}`} onClick={() => setStyle(null)}>ALL STYLES</button>{STYLES.map(s => <button key={s} className={`filter-chip ${filters.style === s ? 'active' : ''}`} onClick={() => setStyle(filters.style === s ? null : s)}>{s}</button>)}</div>
+            <div className="filter-row filter-row-scroll"><button className={`filter-chip ${!filters.placement ? 'active' : ''}`} onClick={() => setPlacement(null)}>ALL PLACEMENTS</button>{PLACEMENTS.map(p => <button key={p} className={`filter-chip ${filters.placement === p ? 'active' : ''}`} onClick={() => setPlacement(filters.placement === p ? null : p)}>{p}</button>)}</div>
 
             <div className="section-header"><h2>{filters.collection ? COLLECTIONS.find(c => c.id === filters.collection)?.name : 'FLASH LIBRARY'}</h2><div className="count">{filteredDesigns.length} DESIGNS FOUND</div></div>
 
-            <div className="flash-grid">{filteredDesigns.map(d => <FlashCard key={d.id} design={d} isFaved={isFavorite(d.id)} onToggleFav={toggleFavorite} onSelect={setSelectedDesign} onOpenStudio={openStudio} />)}</div>
+            <div className="flash-grid">{filteredDesigns.map(d => <FlashCard key={d.id} design={d} isFaved={isFavorite(d.id)} onToggleFav={toggleFavorite} onSelect={setSelectedDesign} onOpenStudio={openStudio} onOpenAR={openAR} />)}</div>
             {filteredDesigns.length === 0 && <div className="empty-state"><div className="empty-state-icon">⊘</div><h3>NO DESIGNS FOUND</h3><p>TRY ADJUSTING YOUR FILTERS OR SEARCH TERMS</p></div>}
             
             <TestimonialsSection />
@@ -447,9 +460,9 @@ export default function InkVaultApp() {
             </div>
             {favCount === 0 ? <div className="empty-state"><div className="empty-state-icon">♡</div><h3>YOUR VAULT IS EMPTY</h3><p>SAVE FLASH DESIGNS FROM THE LIBRARY TO BUILD YOUR COLLECTION</p><button className="btn-primary" style={{ marginTop: 24, width: 'auto', padding: '14px 40px' }} onClick={() => setActiveTab('flash')}>BROWSE FLASH</button></div> : (
               <>
-                {collectionView === 'all' && <div className="flash-grid" style={{ marginTop: 24 }}>{favedDesigns.map(d => <FlashCard key={d.id} design={d} isFaved={true} onToggleFav={toggleFavorite} onSelect={setSelectedDesign} onOpenStudio={openStudio} />)}</div>}
-                {collectionView === 'style' && <div style={{ marginTop: 24 }}>{[...new Set(favedDesigns.map(d => d.style))].map(style => <div key={style} style={{ marginBottom: 32 }}><div className="section-header"><h2>{style.toUpperCase()}</h2><div className="count">{favedDesigns.filter(d => d.style === style).length} DESIGNS</div></div><div className="flash-grid">{favedDesigns.filter(d => d.style === style).map(d => <FlashCard key={d.id} design={d} isFaved={true} onToggleFav={toggleFavorite} onSelect={setSelectedDesign} onOpenStudio={openStudio} />)}</div></div>)}</div>}
-                {collectionView === 'artist' && <div style={{ marginTop: 24 }}>{[...new Set(favedDesigns.map(d => d.artistId))].map(artistId => { const artist = ARTISTS.find(a => a.id === artistId); return <div key={artistId} style={{ marginBottom: 32 }}><div className="section-header"><h2>{artist?.name}</h2><div className="count">{artist?.shop} — {favedDesigns.filter(d => d.artistId === artistId).length} DESIGNS</div></div><div className="flash-grid">{favedDesigns.filter(d => d.artistId === artistId).map(d => <FlashCard key={d.id} design={d} isFaved={true} onToggleFav={toggleFavorite} onSelect={setSelectedDesign} onOpenStudio={openStudio} />)}</div></div>; })}</div>}
+                {collectionView === 'all' && <div className="flash-grid" style={{ marginTop: 24 }}>{favedDesigns.map(d => <FlashCard key={d.id} design={d} isFaved={true} onToggleFav={toggleFavorite} onSelect={setSelectedDesign} onOpenStudio={openStudio} onOpenAR={openAR} />)}</div>}
+                {collectionView === 'style' && <div style={{ marginTop: 24 }}>{[...new Set(favedDesigns.map(d => d.style))].map(style => <div key={style} style={{ marginBottom: 32 }}><div className="section-header"><h2>{style.toUpperCase()}</h2><div className="count">{favedDesigns.filter(d => d.style === style).length} DESIGNS</div></div><div className="flash-grid">{favedDesigns.filter(d => d.style === style).map(d => <FlashCard key={d.id} design={d} isFaved={true} onToggleFav={toggleFavorite} onSelect={setSelectedDesign} onOpenStudio={openStudio} onOpenAR={openAR} />)}</div></div>)}</div>}
+                {collectionView === 'artist' && <div style={{ marginTop: 24 }}>{[...new Set(favedDesigns.map(d => d.artistId))].map(artistId => { const artist = ARTISTS.find(a => a.id === artistId); return <div key={artistId} style={{ marginBottom: 32 }}><div className="section-header"><h2>{artist?.name}</h2><div className="count">{artist?.shop} — {favedDesigns.filter(d => d.artistId === artistId).length} DESIGNS</div></div><div className="flash-grid">{favedDesigns.filter(d => d.artistId === artistId).map(d => <FlashCard key={d.id} design={d} isFaved={true} onToggleFav={toggleFavorite} onSelect={setSelectedDesign} onOpenStudio={openStudio} onOpenAR={openAR} />)}</div></div>; })}</div>}
               </>
             )}
           </div>
@@ -524,6 +537,17 @@ export default function InkVaultApp() {
             </div>
           </div>
         )}
+        {activeTab === 'ar' && (
+          <div className="animate-in">
+            <div className="section-header"><h2><Camera size={24} style={{ verticalAlign: 'middle', marginRight: 8 }} />AR PREVIEW</h2><div className="count">COMING SOON</div></div>
+            <div className="empty-state">
+              <div className="empty-state-icon">📸</div>
+              <h3>AR TATTOO PREVIEW</h3>
+              <p>POINT YOUR CAMERA AT YOUR SKIN TO PREVIEW TATTOO DESIGNS IN REAL-TIME</p>
+              <p style={{ marginTop: 12, color: 'var(--text-muted)', fontSize: 13 }}>This feature is coming soon. Stay tuned!</p>
+            </div>
+          </div>
+        )}
       </main>
 
       <footer className="footer">
@@ -534,9 +558,40 @@ export default function InkVaultApp() {
         </div>
       </footer>
 
+      {/* Mobile Bottom Navigation */}
+      <nav className="bottom-nav">
+        <button className={`bottom-nav-item ${activeTab === 'flash' ? 'active' : ''}`} onClick={() => setActiveTab('flash')}>
+          <LayoutGrid size={22} />
+          <span>Flash</span>
+        </button>
+        <button className={`bottom-nav-item ${activeTab === 'placement' ? 'active' : ''}`} onClick={() => setActiveTab('placement')}>
+          <MapPin size={22} />
+          <span>Placement</span>
+        </button>
+        <button className={`bottom-nav-item ${activeTab === 'artists' ? 'active' : ''}`} onClick={() => setActiveTab('artists')}>
+          <Users size={22} />
+          <span>Artists</span>
+        </button>
+        <button className={`bottom-nav-item ${activeTab === 'vault' ? 'active' : ''}`} onClick={() => setActiveTab('vault')}>
+          <BookMarked size={22} />
+          {favCount > 0 && <span className="bottom-nav-badge">{favCount}</span>}
+          <span>Vault</span>
+        </button>
+        <button className={`bottom-nav-item ${activeTab === 'ar' ? 'active' : ''}`} onClick={() => setActiveTab('ar' as TabType)}>
+          <Camera size={22} />
+          <span>AR</span>
+        </button>
+      </nav>
+
+      {/* Floating AR Preview Button */}
+      <button className="ar-fab" onClick={() => setActiveTab('ar' as TabType)} aria-label="Open AR Preview">
+        <Camera size={22} />
+      </button>
+
       {selectedDesign && <DetailModal design={selectedDesign} onClose={() => setSelectedDesign(null)} isFaved={isFavorite(selectedDesign.id)} onToggleFav={toggleFavorite} onOpenStudio={openStudio} onBookArtist={openBooking} />}
       {studioDesign && <DesignStudio design={studioDesign} isOpen={!!studioDesign} onClose={closeStudio} />}
       <BookingModal artist={bookingArtist} design={bookingDesign} isOpen={!!bookingArtist} onClose={closeBooking} />
+      {showAR && <ARPreview design={arDesign} designs={DESIGNS} onClose={() => setShowAR(false)} />}
     </div>
   );
 }

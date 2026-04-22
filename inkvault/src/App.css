@@ -20,8 +20,8 @@
   --rust: #8B4513;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+html { scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
 
 body {
   background: var(--bg);
@@ -345,7 +345,6 @@ body {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 16px; letter-spacing: 1px;
 }
-
 .search-bar input::placeholder { color: var(--text-dim); }
 .search-icon { color: var(--text-muted); }
 
@@ -477,8 +476,8 @@ body {
 }
 
 .flash-fav-btn {
-  position: absolute; top: 12px; right: 12px;
-  width: 36px; height: 36px;
+  position: absolute; top: 8px; right: 8px;
+  width: 44px; height: 44px;
   background: rgba(11, 12, 15, 0.7);
   border: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center;
@@ -1669,4 +1668,314 @@ body {
   .pinterest-intro p {
     font-size: 1rem;
   }
+}
+
+/* ── AR Preview ─────────────────────────────── */
+.ar-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.ar-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+}
+
+.ar-title {
+  font-family: 'Bebas Neue', sans-serif;
+  color: #fff;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+}
+
+.ar-close-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.2s;
+}
+.ar-close-btn:hover { background: rgba(255,255,255,0.25); }
+
+.ar-canvas {
+  flex: 1;
+  width: 100%;
+  touch-action: none;
+  display: block;
+}
+
+.ar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 12px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(10px);
+  flex-wrap: wrap;
+}
+
+.ar-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 0.65rem;
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.05em;
+  transition: background 0.2s;
+  min-width: 56px;
+}
+.ar-btn:hover { background: rgba(255,255,255,0.2); }
+
+.ar-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 140px;
+}
+
+.ar-control-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ccc;
+  font-size: 0.7rem;
+}
+
+.ar-control-row label {
+  min-width: 50px;
+  color: #aaa;
+  font-size: 0.65rem;
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.05em;
+}
+
+.ar-control-row span {
+  min-width: 32px;
+  text-align: right;
+  font-size: 0.65rem;
+  color: #ccc;
+}
+
+.ar-slider {
+  flex: 1;
+  accent-color: #C41E1E;
+  height: 4px;
+  cursor: pointer;
+}
+
+.ar-mode-btn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #aaa;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.65rem;
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+  align-self: flex-start;
+}
+.ar-mode-btn.active {
+  background: rgba(196,30,30,0.3);
+  border-color: #C41E1E;
+  color: #fff;
+}
+
+/* Design picker */
+.ar-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 1100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.ar-picker-modal {
+  background: #1a1d23;
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ar-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.ar-picker-header h3 {
+  font-family: 'Bebas Neue', sans-serif;
+  color: #fff;
+  font-size: 1.2rem;
+  letter-spacing: 0.05em;
+}
+
+.ar-picker-header button {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+}
+
+.ar-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.ar-picker-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 8px 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ar-picker-item:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); }
+.ar-picker-item.active { border-color: #C41E1E; background: rgba(196,30,30,0.15); }
+.ar-picker-item img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; }
+.ar-picker-item span { font-size: 0.55rem; color: #ccc; text-align: center; line-height: 1.2; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Try AR button on flash cards */
+.ar-try-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(196,30,30,0.15);
+  border: 1px solid #C41E1E;
+  color: #C41E1E;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.7rem;
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 6px;
+  width: 100%;
+  justify-content: center;
+}
+.ar-try-btn:hover { background: rgba(196,30,30,0.3); color: #fff; }
+
+/* ── Drawing Canvas ─────────────────────────────────────────── */
+.studio-draw-fullwidth {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.drawing-canvas-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: #0d0d0d;
+}
+
+.drawing-canvas-wrapper canvas {
+  width: 100%;
+  background: #fff;
+}
+
+.drawing-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  background: #111;
+  border-top: 1px solid #222;
+}
+
+.drawing-toolbar-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.drawing-tool-btn {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background: #222;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  position: relative;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.drawing-tool-btn:hover:not(:disabled) { background: #333; }
+.drawing-tool-btn:disabled { opacity: 0.35; cursor: default; }
+.drawing-tool-btn.active { border-color: #a78bfa; background: #2d1f4e; }
+
+.brush-size-dot {
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.color-swatch-btn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 50%;
+}
+
+.color-picker-label {
+  cursor: pointer;
+}
+
+.drawing-status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  padding: 4px 12px;
+  background: #0d0d0d;
+  letter-spacing: 0.05em;
 }

@@ -49,5 +49,5 @@ export interface Collection {
 }
 
 export type TabType = 'flash' | 'placement' | 'artists' | 'vault' | 'pinterest';
-export type StudioTabType = 'preview' | 'stencil' | 'customize' | 'measure';
+export type StudioTabType = 'preview' | 'stencil' | 'customize' | 'measure' | 'draw';
 export type CollectionViewType = 'all' | 'style' | 'artist';
